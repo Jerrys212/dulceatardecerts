@@ -1,14 +1,26 @@
-import { Outlet } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 import Header from "../components/Header";
+import { useAuth } from "../hooks/useAuth";
+import { ToastContainer } from "react-toastify";
+import Spinner from "../components/Spinner";
 
 const AppLayout = () => {
-    return (
-        <>
-            <Header />
+    const { data, isError, isLoading } = useAuth();
 
-            <Outlet />
-        </>
-    );
+    if (isLoading) return <Spinner />;
+
+    if (isError) return <Navigate to={"/login"} />;
+
+    if (data)
+        return (
+            <>
+                <Header />
+
+                <Outlet />
+
+                <ToastContainer />
+            </>
+        );
 };
 
 export default AppLayout;
