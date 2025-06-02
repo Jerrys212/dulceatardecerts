@@ -19,7 +19,7 @@ export default function ProductDetailModal() {
         error,
     } = useQuery({
         queryKey: ["category", productId],
-        queryFn: () => getProductById(productId),
+        queryFn: () => getProductById({ productId }),
         enabled: !!productId,
         retry: false,
     });

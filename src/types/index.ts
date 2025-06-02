@@ -78,6 +78,7 @@ export const SalesSchema = z.array(SaleSchema);
 
 export type SaleItem = z.infer<typeof SaleItemSchema>;
 export type Sale = z.infer<typeof SaleSchema>;
+export type SaleFormData = Pick<Sale, "customer" | "items">;
 
 export type MenuItem = {
     name: string;

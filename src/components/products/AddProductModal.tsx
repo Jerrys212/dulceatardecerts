@@ -71,12 +71,12 @@ export default function AddProductModal() {
 
     const handleFormSubmit = (data: ProductFormData) => {
         // Convertir price a número si viene como string
-        const formDataWithParsedPrice = {
+        const formData = {
             ...data,
             price: Number(data.price),
         };
 
-        mutate(formDataWithParsedPrice);
+        mutate({ formData });
     };
 
     const handleClose = () => {

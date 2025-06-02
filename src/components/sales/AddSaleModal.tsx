@@ -5,14 +5,10 @@ import { useForm } from "react-hook-form";
 import { XMarkIcon, ShoppingCartIcon, TrashIcon, TagIcon, ArrowLeftIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { Category, Product, SaleItem } from "../../types";
-import { useQuery } from "@tanstack/react-query";
+import { Category, Product, SaleFormData, SaleItem } from "../../types";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getProducts } from "../../services/Products.Service";
-
-interface SaleFormData {
-    customer: string;
-    items: SaleItem[];
-}
+import { createSale } from "../../services/Sale.Service";
 
 interface AddSaleModalProps {
     categories: Category[] | undefined;
@@ -21,6 +17,7 @@ interface AddSaleModalProps {
 export default function AddSaleModal({ categories }: AddSaleModalProps) {
     const show = new URLSearchParams(useLocation().search).has("addSale");
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
 
     // Estados para el flujo paso a paso
     const [currentStep, setCurrentStep] = useState<"category" | "subcategory" | "product">("category");
@@ -81,7 +78,6 @@ export default function AddSaleModal({ categories }: AddSaleModalProps) {
         setCurrentStep("product");
         setShowProductForm(true);
     };
-
     // Manejar selección de producto
     const handleProductSelect = (productId: string) => {
         const product = availableProducts.find((p) => p._id === productId);
@@ -180,22 +176,35 @@ export default function AddSaleModal({ categories }: AddSaleModalProps) {
         }).format(price);
     };
 
+    const { mutate } = useMutation({
+        mutationFn: createSale,
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ["sales"] });
+
+            toast.success(data.message);
+
+            handleClose();
+        },
+        onError: (error: any) => {
+            toast.error(error.message);
+        },
+    });
+
     // Enviar venta
-    const handleFormSubmit = (data: SaleFormData) => {
+    const handleFormSubmit = (formData: SaleFormData) => {
         if (cartItems.length === 0) {
             toast.error("Agrega al menos un producto al carrito");
             return;
         }
 
         const saleData = {
-            customer: data.customer,
+            customer: formData.customer,
             items: cartItems,
             total: getCartTotal(),
             // seller: "ID_DEL_VENDEDOR" // Agregar cuando tengas el sistema de usuarios
         };
 
-        console.log("Datos de venta:", saleData);
-        // onCreateSale(saleData);
+        mutate({ formData: saleData });
     };
 
     // Cerrar modal

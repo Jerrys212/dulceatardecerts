@@ -1,15 +1,19 @@
 import { PlusIcon } from "@heroicons/react/24/outline";
 import CategoryCard from "../../components/categories/CategoryCard";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCategories } from "../../services/Category.Service";
 import CategoryDetailModal from "../../components/categories/CategoryDetailModal";
 import Spinner from "../../components/Spinner";
 import AddCategoryModal from "../../components/categories/AddCategoryModal";
 import EditCategoryModal from "../../components/categories/EditCategoryModal";
+import { useSocket } from "../../context/useSocket";
+import { useEffect } from "react";
 
 const Categories = () => {
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
+    const { isConnected, on, off } = useSocket();
 
     const { data, isLoading } = useQuery({
         queryKey: ["categories"],
@@ -17,6 +21,37 @@ const Categories = () => {
         retry: false,
     });
 
+    useEffect(() => {
+        if (!isConnected) return; // Solo escuchar si está conectado
+
+        // Función para invalidar y refrescar categorías
+        const refreshCategories = () => {
+            queryClient.invalidateQueries({ queryKey: ["categories"] });
+        };
+
+        // Escuchar eventos de socket y refrescar data
+        on("newCategory", (receivedData) => {
+            console.log("Nueva categoría:", receivedData);
+            refreshCategories(); // Refrescar lista
+        });
+
+        on("deletedCategory", (receivedData) => {
+            console.log("Categoría eliminada:", receivedData);
+            refreshCategories(); // Refrescar lista
+        });
+
+        on("updatedCategory", (receivedData) => {
+            console.log("Categoría actualizada:", receivedData);
+            refreshCategories(); // Refrescar lista
+        });
+
+        // Cleanup
+        return () => {
+            off("newCategory");
+            off("updatedCategory");
+            off("deletedCategory");
+        };
+    }, [on, off, isConnected, queryClient]);
     if (isLoading) return <Spinner />;
 
     if (data)
