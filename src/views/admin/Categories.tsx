@@ -22,36 +22,25 @@ const Categories = () => {
     });
 
     useEffect(() => {
-        if (!isConnected) return; // Solo escuchar si está conectado
+        if (!isConnected) return;
 
-        // Función para invalidar y refrescar categorías
-        const refreshCategories = () => {
+        const refreshAllData = () => {
             queryClient.invalidateQueries({ queryKey: ["categories"] });
         };
 
-        // Escuchar eventos de socket y refrescar data
-        on("newCategory", (receivedData) => {
-            console.log("Nueva categoría:", receivedData);
-            refreshCategories(); // Refrescar lista
+        const eventsToListen = ["newCategory", "deletedCategory", "updatedCategory"];
+
+        eventsToListen.forEach((event) => {
+            on(event, refreshAllData);
         });
 
-        on("deletedCategory", (receivedData) => {
-            console.log("Categoría eliminada:", receivedData);
-            refreshCategories(); // Refrescar lista
-        });
-
-        on("updatedCategory", (receivedData) => {
-            console.log("Categoría actualizada:", receivedData);
-            refreshCategories(); // Refrescar lista
-        });
-
-        // Cleanup
         return () => {
-            off("newCategory");
-            off("updatedCategory");
-            off("deletedCategory");
+            eventsToListen.forEach((event) => {
+                off(event);
+            });
         };
     }, [on, off, isConnected, queryClient]);
+
     if (isLoading) return <Spinner />;
 
     if (data)

@@ -50,17 +50,18 @@ export type ProductFormData = Omit<Product, "_id" | "isActive" | "createdAt" | "
     category: string;
 };
 
-// Schema para un item de la venta
+// Schema para un item de la venta - CORREGIDO
 const SaleItemSchema = z.object({
-    product: z.string(),
-    extras: z.array(z.string()),
+    product: productSchema,
     name: z.string(),
+    extras: z.array(z.string()),
     price: z.number(),
     quantity: z.number(),
     subtotal: z.number(),
+    // Removí el campo category duplicado ya que está dentro de product
 });
 
-// Schema completo de la venta
+// Schema completo de la venta - CORREGIDO
 export const SaleSchema = z.object({
     _id: z.string(),
     customer: z.string(),
@@ -70,15 +71,31 @@ export const SaleSchema = z.object({
         _id: z.string(),
         username: z.string(),
     }),
+    status: z.string(),
     createdAt: z.string(),
     updatedAt: z.string(),
+    statusUpdatedAt: z.string().optional(),
+    statusUpdatedBy: z.object({ _id: z.string(), username: z.string() }),
 });
 
 export const SalesSchema = z.array(SaleSchema);
 
+export const cartItemSchema = z.object({
+    product: z.string(),
+    name: z.string(),
+    extras: z.array(z.string()),
+    price: z.number(),
+    quantity: z.number(),
+    subtotal: z.number(),
+});
+
 export type SaleItem = z.infer<typeof SaleItemSchema>;
+export type CartItem = z.infer<typeof cartItemSchema>;
 export type Sale = z.infer<typeof SaleSchema>;
-export type SaleFormData = Pick<Sale, "customer" | "items">;
+export type SaleFormData = {
+    customer: string;
+    items: CartItem[];
+};
 
 export type MenuItem = {
     name: string;
@@ -96,4 +113,9 @@ export type MenuCard = {
     description: string;
     bgColor: string;
     textColor: string;
+};
+
+export type DateRange = {
+    startDate: string;
+    endDate: string;
 };

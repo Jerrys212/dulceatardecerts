@@ -1,14 +1,21 @@
 import { PlusIcon, CurrencyDollarIcon } from "@heroicons/react/24/outline";
 import SaleCard from "../../components/sales/SaleCard";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Spinner from "../../components/Spinner";
 import { getSales } from "../../services/Sale.Service";
 import AddSaleModal from "../../components/sales/AddSaleModal";
 import { getCategories } from "../../services/Category.Service";
 import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+import { useSocket } from "../../context/useSocket";
+import EditSaleModal from "../../components/sales/EditSaleModal";
+import SaleDetailModal from "../../components/sales/SaleDetailsModal";
+import StatusChangeModal from "../../components/sales/EditSaleStatusModal";
 
 const SalesPage = () => {
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
+    const { isConnected, on, off } = useSocket();
     // Calcular estadísticas
     // const totalVentas = salesToShow.length;
     // const totalIngresos = salesToShow.reduce((sum, sale) => sum + sale.total, 0);
@@ -37,6 +44,40 @@ const SalesPage = () => {
         queryFn: getSales,
         retry: false,
     });
+
+    const showEditModal = new URLSearchParams(location.search).has("editSale");
+
+    useEffect(() => {
+        if (!isConnected) return;
+
+        const refreshAllData = () => {
+            queryClient.invalidateQueries({ queryKey: ["categories"] });
+            queryClient.invalidateQueries({ queryKey: ["products"] });
+            queryClient.invalidateQueries({ queryKey: ["sales"] });
+        };
+
+        const eventsToListen = [
+            "newCategory",
+            "deletedCategory",
+            "updatedCategory",
+            "newProduct",
+            "updateProduct",
+            "deletedProduct",
+            "newSale",
+            "deletedSale",
+            "updatedSale",
+        ];
+
+        eventsToListen.forEach((event) => {
+            on(event, refreshAllData);
+        });
+
+        return () => {
+            eventsToListen.forEach((event) => {
+                off(event);
+            });
+        };
+    }, [on, off, isConnected, queryClient]);
 
     if (isLoading) return <Spinner />;
 
@@ -146,6 +187,9 @@ const SalesPage = () => {
                 </div>
 
                 <AddSaleModal categories={categories} />
+                {showEditModal && <EditSaleModal categories={categories} />}
+                <SaleDetailModal />
+                <StatusChangeModal />
             </div>
         );
 };

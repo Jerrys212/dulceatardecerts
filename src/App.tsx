@@ -7,6 +7,7 @@ import Products from "./views/admin/Products";
 import Sales from "./views/admin/Sales";
 import { SocketProvider } from "./context/useSocket";
 import { useState } from "react";
+import Reports from "./views/admin/Reports";
 
 function App() {
     const [token, setToken] = useState(sessionStorage.getItem("AUTH_TOKEN"));
@@ -24,7 +25,7 @@ function App() {
                         <Route path="/categories" index element={<Categories />} />
                         <Route path="/products" index element={<Products />} />
                         <Route path="/sales" index element={<Sales />} />
-                        <Route path="/reports" index element={<Dashboard />} />
+                        <Route path="/reports" index element={<Reports />} />
                     </Route>
                 </Routes>
             </SocketProvider>

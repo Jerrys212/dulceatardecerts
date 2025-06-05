@@ -1,13 +1,19 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Bars3Icon, XMarkIcon, UserCircleIcon, TagIcon, ShoppingBagIcon, CurrencyDollarIcon, ChartBarIcon } from "@heroicons/react/24/outline";
 import { MenuItem } from "../types";
 
 const Header = () => {
+    const navigate = useNavigate();
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
     const toggleDrawer = () => {
         setIsDrawerOpen(!isDrawerOpen);
+    };
+
+    const logout = () => {
+        sessionStorage.clear();
+        navigate("/");
     };
 
     const menuItems: MenuItem[] = [
@@ -158,7 +164,9 @@ const Header = () => {
                                     </div>
                                     <div className="text-sm text-gray-600">Juan Pérez</div>
                                 </div>
-                                <button className="text-xs text-gray-500 hover:text-gray-700 transition-colors duration-200">Cerrar Sesión</button>
+                                <button onClick={() => logout()} className="text-xs text-gray-500 hover:text-gray-700 transition-colors duration-200">
+                                    Cerrar Sesión
+                                </button>
                             </div>
                         </div>
                     </div>

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { io, Socket } from "socket.io-client";
 
 interface SocketContextType {
@@ -30,7 +30,6 @@ export const SocketProvider = ({ children, token, url = "http://localhost:5000" 
             return;
         }
 
-        // Crear conexión
         const socketInstance = io(url, {
             auth: { token },
             withCredentials: true,
@@ -59,14 +58,12 @@ export const SocketProvider = ({ children, token, url = "http://localhost:5000" 
         };
     }, [token, url]);
 
-    // Función para escuchar eventos
     const on = (eventName: string, callback: (data: any) => void) => {
         if (socket) {
             socket.on(eventName, callback);
         }
     };
 
-    // Función para dejar de escuchar
     const off = (eventName: string) => {
         if (socket) {
             socket.off(eventName);

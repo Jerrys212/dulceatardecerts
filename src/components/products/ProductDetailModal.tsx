@@ -18,7 +18,7 @@ export default function ProductDetailModal() {
         isLoading,
         error,
     } = useQuery({
-        queryKey: ["category", productId],
+        queryKey: ["product", productId],
         queryFn: () => getProductById({ productId }),
         enabled: !!productId,
         retry: false,
@@ -61,7 +61,7 @@ export default function ProductDetailModal() {
                                 leaveTo="opacity-0 scale-95"
                             >
                                 <DialogPanel className="w-full max-w-2xl transform overflow-hidden rounded-3xl bg-white text-left align-middle shadow-2xl transition-all">
-                                    <div className="relative bg-gradient-to-r from-green-600 to-teal-600 px-8 py-8 text-white">
+                                    <div className="relative bg-gradient-to-r from-blue-600 to-purple-600 px-8 py-8 text-white">
                                         <div className="absolute top-4 right-4">
                                             <button
                                                 onClick={handleClose}

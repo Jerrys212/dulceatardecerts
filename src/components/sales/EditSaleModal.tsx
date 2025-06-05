@@ -1,22 +1,23 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Fragment } from "react";
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from "@headlessui/react";
 import { useForm } from "react-hook-form";
-import { XMarkIcon, ShoppingCartIcon, TrashIcon, TagIcon, ArrowLeftIcon, PlusIcon } from "@heroicons/react/24/outline";
+import { XMarkIcon, ShoppingCartIcon, TrashIcon, TagIcon, ArrowLeftIcon, PlusIcon, PencilIcon } from "@heroicons/react/24/outline";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { CartItem, Category, Product, SaleFormData } from "../../types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getProducts } from "../../services/Products.Service";
-import { createSale } from "../../services/Sale.Service";
-import { formatPrice } from "../../utils";
+import { updateSale, getSaleById } from "../../services/Sale.Service";
+import Spinner from "../Spinner";
 
-interface AddSaleModalProps {
+interface EditSaleModalProps {
     categories: Category[] | undefined;
 }
 
-export default function AddSaleModal({ categories }: AddSaleModalProps) {
-    const show = new URLSearchParams(useLocation().search).has("addSale");
+export default function EditSaleModal({ categories }: EditSaleModalProps) {
+    const saleId = new URLSearchParams(useLocation().search).get("editSale") || "";
+    const show = new URLSearchParams(useLocation().search).has("editSale");
     const navigate = useNavigate();
     const queryClient = useQueryClient();
 
@@ -33,8 +34,15 @@ export default function AddSaleModal({ categories }: AddSaleModalProps) {
     // Estados para el formulario de producto actual
     const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
     const [quantity, setQuantity] = useState(1);
-    const [extras, setExtras] = useState<string[]>([]); // Cambiado a array
-    const [currentExtra, setCurrentExtra] = useState(""); // Para el input temporal
+    const [extras, setExtras] = useState<string[]>([]);
+    const [currentExtra, setCurrentExtra] = useState("");
+
+    // Query para obtener los datos de la venta
+    const { data: saleData, isLoading: isLoadingSale } = useQuery({
+        queryKey: ["sale", saleId],
+        queryFn: () => getSaleById({ saleId: saleId }),
+        enabled: !!saleId && show,
+    });
 
     const { data: mockProducts } = useQuery({
         queryKey: ["products"],
@@ -47,6 +55,7 @@ export default function AddSaleModal({ categories }: AddSaleModalProps) {
         handleSubmit,
         formState: { errors },
         reset,
+        setValue,
     } = useForm<SaleFormData>({
         defaultValues: {
             customer: "",
@@ -54,8 +63,27 @@ export default function AddSaleModal({ categories }: AddSaleModalProps) {
         },
     });
 
-    // Opciones de extras comunes (puedes personalizar según tu negocio)
+    // Opciones de extras comunes
     const commonExtras = ["Fresa", "Nutella", "Chocolate", "Crema", "Caramelo", "Plátano", "Durazno", "Manzana", "Canela", "Azúcar glass"];
+
+    // Llenar el formulario cuando se cargan los datos de la venta
+    useEffect(() => {
+        if (saleData) {
+            setValue("customer", saleData.customer);
+
+            // Convertir SaleItem[] a CartItem[]
+            const cartItemsFromSale: CartItem[] = saleData.items.map((item) => ({
+                product: item.product._id, // Extraer solo el ID del producto
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity,
+                extras: item.extras,
+                subtotal: item.subtotal,
+            }));
+
+            setCartItems(cartItemsFromSale);
+        }
+    }, [saleData, setValue]);
 
     // Manejar selección de categoría
     const handleCategorySelect = (category: Category) => {
@@ -77,13 +105,14 @@ export default function AddSaleModal({ categories }: AddSaleModalProps) {
         setCurrentStep("product");
         setShowProductForm(true);
     };
+
     // Manejar selección de producto
     const handleProductSelect = (productId: string) => {
         const product = availableProducts.find((p) => p._id === productId);
         if (product) {
             setCurrentProduct(product);
             setQuantity(1);
-            setExtras([]); // Reset como array vacío
+            setExtras([]);
             setCurrentExtra("");
         }
     };
@@ -118,7 +147,7 @@ export default function AddSaleModal({ categories }: AddSaleModalProps) {
             name: currentProduct.name,
             price: currentProduct.price,
             quantity,
-            extras: extras, // Ya es un array
+            extras: extras,
             subtotal,
         };
 
@@ -167,35 +196,43 @@ export default function AddSaleModal({ categories }: AddSaleModalProps) {
         return cartItems.reduce((total, item) => total + item.subtotal, 0);
     };
 
-    const { mutate } = useMutation({
-        mutationFn: createSale,
+    // Formatear precio
+    const formatPrice = (price: number) => {
+        return new Intl.NumberFormat("es-MX", {
+            style: "currency",
+            currency: "MXN",
+        }).format(price);
+    };
+
+    // Mutación para actualizar venta
+    const { mutate, isPending } = useMutation({
+        mutationFn: updateSale,
         onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: ["sales"] });
+            queryClient.invalidateQueries({ queryKey: ["sale", saleId] });
 
-            toast.success(data.message);
-
+            toast.success(data.message || "Venta actualizada exitosamente");
             handleClose();
         },
         onError: (error: any) => {
-            toast.error(error.message);
+            toast.error(error.message || "Error al actualizar la venta");
         },
     });
 
-    // Enviar venta
+    // Enviar venta actualizada
     const handleFormSubmit = (formData: SaleFormData) => {
         if (cartItems.length === 0) {
             toast.error("Agrega al menos un producto al carrito");
             return;
         }
 
-        const saleData = {
+        const saleDataToUpdate = {
             customer: formData.customer,
             items: cartItems,
             total: getCartTotal(),
-            // seller: "ID_DEL_VENDEDOR" // Agregar cuando tengas el sistema de usuarios
         };
 
-        mutate({ formData: saleData });
+        mutate({ saleId, formData: saleDataToUpdate });
     };
 
     // Cerrar modal
@@ -211,6 +248,9 @@ export default function AddSaleModal({ categories }: AddSaleModalProps) {
         setCurrentExtra("");
         navigate(location.pathname, { replace: true });
     };
+
+    // Mostrar loading si está cargando los datos
+    if (isLoadingSale) return <Spinner />;
 
     return (
         <Transition appear show={show} as={Fragment}>
@@ -240,7 +280,7 @@ export default function AddSaleModal({ categories }: AddSaleModalProps) {
                         >
                             <DialogPanel className="w-full max-w-4xl transform overflow-hidden rounded-3xl bg-white text-left align-middle shadow-2xl transition-all">
                                 {/* Header del Modal */}
-                                <div className="relative bg-gradient-to-r from-green-600 to-blue-600 px-8 py-6 text-white">
+                                <div className="relative bg-gradient-to-r  from-orange-600 to-red-600 px-8 py-6 text-white">
                                     <div className="absolute top-4 right-4">
                                         <button
                                             onClick={handleClose}
@@ -253,16 +293,18 @@ export default function AddSaleModal({ categories }: AddSaleModalProps) {
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center space-x-4">
                                             <div className="p-3 bg-white/20 rounded-2xl">
-                                                <ShoppingCartIcon className="h-8 w-8" />
+                                                <PencilIcon className="h-8 w-8" />
                                             </div>
                                             <div>
                                                 <DialogTitle as="h3" className="text-2xl font-bold">
-                                                    Nueva Venta
+                                                    Editar Venta
                                                 </DialogTitle>
-                                                <p className="mt-1 text-green-100">
+                                                <p className="mt-1 text-orange-100">{saleData && `Cliente: ${saleData.customer}`}</p>
+                                                <p className="text-orange-200 text-sm">
                                                     {currentStep === "category" && "Selecciona una categoría"}
                                                     {currentStep === "subcategory" && "Elige una subcategoría"}
-                                                    {currentStep === "product" && "Configura tu producto"}
+                                                    {currentStep === "product" && showProductForm && "Configura tu producto"}
+                                                    {currentStep === "product" && !showProductForm && "Producto agregado - ¿Agregar otro?"}
                                                 </p>
                                             </div>
                                         </div>
@@ -292,10 +334,10 @@ export default function AddSaleModal({ categories }: AddSaleModalProps) {
                                                         <button
                                                             key={category._id}
                                                             onClick={() => handleCategorySelect(category)}
-                                                            className="p-4 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all duration-200 text-left group"
+                                                            className="p-4 border-2 border-gray-200 rounded-xl hover:border-orange-500 hover:bg-orange-50 transition-all duration-200 text-left group"
                                                         >
                                                             <div className="flex items-center space-x-3">
-                                                                <TagIcon className="w-6 h-6 text-blue-600 group-hover:scale-110 transition-transform duration-200" />
+                                                                <TagIcon className="w-6 h-6 text-orange-600 group-hover:scale-110 transition-transform duration-200" />
                                                                 <div>
                                                                     <h5 className="font-medium text-gray-900">{category.name}</h5>
                                                                     <p className="text-sm text-gray-500">
@@ -318,10 +360,10 @@ export default function AddSaleModal({ categories }: AddSaleModalProps) {
                                                         <button
                                                             key={subCategory}
                                                             onClick={() => handleSubCategorySelect(subCategory)}
-                                                            className="p-4 border-2 border-gray-200 rounded-xl hover:border-green-500 hover:bg-green-50 transition-all duration-200 text-left group"
+                                                            className="p-4 border-2 border-gray-200 rounded-xl hover:border-orange-500 hover:bg-orange-50 transition-all duration-200 text-left group"
                                                         >
                                                             <div className="flex items-center space-x-3">
-                                                                <div className="w-3 h-3 bg-green-500 rounded-full group-hover:scale-125 transition-transform duration-200"></div>
+                                                                <div className="w-3 h-3 bg-orange-500 rounded-full group-hover:scale-125 transition-transform duration-200"></div>
                                                                 <span className="font-medium text-gray-900">{subCategory}</span>
                                                             </div>
                                                         </button>
@@ -343,7 +385,7 @@ export default function AddSaleModal({ categories }: AddSaleModalProps) {
                                                     <select
                                                         onChange={(e) => handleProductSelect(e.target.value)}
                                                         value={currentProduct?._id || ""}
-                                                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                                                     >
                                                         <option value="">Selecciona un producto</option>
                                                         {availableProducts.map((product) => (
@@ -359,7 +401,7 @@ export default function AddSaleModal({ categories }: AddSaleModalProps) {
                                                     <div className="bg-gray-50 rounded-xl p-6 space-y-4">
                                                         <div className="flex items-center justify-between">
                                                             <h5 className="font-medium text-gray-900">{currentProduct.name}</h5>
-                                                            <span className="text-lg font-bold text-green-600">
+                                                            <span className="text-lg font-bold text-orange-600">
                                                                 {formatPrice(currentProduct.price)}
                                                             </span>
                                                         </div>
@@ -372,12 +414,12 @@ export default function AddSaleModal({ categories }: AddSaleModalProps) {
                                                                     min="1"
                                                                     value={quantity}
                                                                     onChange={(e) => setQuantity(Number(e.target.value))}
-                                                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                                                                 />
                                                             </div>
                                                         </div>
 
-                                                        {/* Sección de Extras mejorada */}
+                                                        {/* Sección de Extras */}
                                                         <div className="space-y-4">
                                                             <label className="block text-sm font-medium text-gray-700">Extras (opcional)</label>
 
@@ -393,8 +435,8 @@ export default function AddSaleModal({ categories }: AddSaleModalProps) {
                                                                             disabled={extras.includes(extra)}
                                                                             className={`px-3 py-1 text-xs rounded-full border transition-colors duration-200 ${
                                                                                 extras.includes(extra)
-                                                                                    ? "bg-blue-100 text-blue-700 border-blue-300 cursor-not-allowed"
-                                                                                    : "bg-white text-gray-700 border-gray-300 hover:bg-blue-50 hover:border-blue-300"
+                                                                                    ? "bg-orange-100 text-orange-700 border-orange-300 cursor-not-allowed"
+                                                                                    : "bg-white text-gray-700 border-gray-300 hover:bg-orange-50 hover:border-orange-300"
                                                                             }`}
                                                                         >
                                                                             {extra}
@@ -410,13 +452,13 @@ export default function AddSaleModal({ categories }: AddSaleModalProps) {
                                                                     value={currentExtra}
                                                                     onChange={(e) => setCurrentExtra(e.target.value)}
                                                                     placeholder="Agregar extra personalizado"
-                                                                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                                                                     onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addCustomExtra())}
                                                                 />
                                                                 <button
                                                                     type="button"
                                                                     onClick={addCustomExtra}
-                                                                    className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                                                                    className="px-3 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors duration-200"
                                                                 >
                                                                     <PlusIcon className="w-4 h-4" />
                                                                 </button>
@@ -430,13 +472,13 @@ export default function AddSaleModal({ categories }: AddSaleModalProps) {
                                                                         {extras.map((extra, index) => (
                                                                             <span
                                                                                 key={index}
-                                                                                className="inline-flex items-center px-3 py-1 text-xs bg-green-100 text-green-800 rounded-full"
+                                                                                className="inline-flex items-center px-3 py-1 text-xs bg-orange-100 text-orange-800 rounded-full"
                                                                             >
                                                                                 {extra}
                                                                                 <button
                                                                                     type="button"
                                                                                     onClick={() => removeExtra(extra)}
-                                                                                    className="ml-2 text-green-600 hover:text-green-800"
+                                                                                    className="ml-2 text-orange-600 hover:text-orange-800"
                                                                                 >
                                                                                     <XMarkIcon className="w-3 h-3" />
                                                                                 </button>
@@ -455,7 +497,7 @@ export default function AddSaleModal({ categories }: AddSaleModalProps) {
                                                             </div>
                                                             <button
                                                                 onClick={addToCart}
-                                                                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                                                                className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors duration-200"
                                                             >
                                                                 Agregar al Carrito
                                                             </button>
@@ -465,11 +507,10 @@ export default function AddSaleModal({ categories }: AddSaleModalProps) {
                                             </div>
                                         )}
 
-                                        {/* Botón para agregar otro producto */}
-                                        {cartItems.length > 0 && !showProductForm && (
+                                        {cartItems.length > 0 && !showProductForm && currentStep === "product" && (
                                             <button
                                                 onClick={addAnotherProduct}
-                                                className="w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-600 hover:border-blue-500 hover:text-blue-600 transition-colors duration-200"
+                                                className="w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-600 hover:border-orange-500 hover:text-orange-600 transition-colors duration-200"
                                             >
                                                 + Agregar otro producto
                                             </button>
@@ -498,9 +539,9 @@ export default function AddSaleModal({ categories }: AddSaleModalProps) {
                                                                         {item.quantity}x {formatPrice(item.price)}
                                                                     </p>
                                                                     {item.extras && item.extras.length > 0 && (
-                                                                        <p className="text-xs text-blue-600">Extras: {item.extras.join(", ")}</p>
+                                                                        <p className="text-xs text-orange-600">Extras: {item.extras.join(", ")}</p>
                                                                     )}
-                                                                    <p className="text-sm font-semibold text-green-600">
+                                                                    <p className="text-sm font-semibold text-orange-600">
                                                                         {formatPrice(item.subtotal)}
                                                                     </p>
                                                                 </div>
@@ -517,7 +558,7 @@ export default function AddSaleModal({ categories }: AddSaleModalProps) {
                                                     <div className="border-t pt-3">
                                                         <div className="flex justify-between items-center">
                                                             <span className="font-semibold">Total:</span>
-                                                            <span className="text-xl font-bold text-green-600">{formatPrice(getCartTotal())}</span>
+                                                            <span className="text-xl font-bold text-orange-600">{formatPrice(getCartTotal())}</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -534,18 +575,53 @@ export default function AddSaleModal({ categories }: AddSaleModalProps) {
                                                     })}
                                                     type="text"
                                                     placeholder="Nombre del cliente"
-                                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                                                 />
                                                 {errors.customer && <p className="mt-1 text-sm text-red-600">{errors.customer.message}</p>}
                                             </div>
 
-                                            <button
-                                                type="submit"
-                                                disabled={cartItems.length === 0}
-                                                className="w-full py-3 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-xl hover:from-green-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-all duration-200"
-                                            >
-                                                Completar Venta
-                                            </button>
+                                            <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                                                <button
+                                                    type="button"
+                                                    onClick={handleClose}
+                                                    className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 font-medium transition-colors duration-200"
+                                                >
+                                                    Cancelar
+                                                </button>
+                                                <button
+                                                    type="submit"
+                                                    disabled={cartItems.length === 0 || isPending}
+                                                    className="px-6 py-3 bg-gradient-to-r  from-orange-600 to-red-600 text-white rounded-xl hover:from-orange-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-all duration-200 transform hover:scale-105 disabled:transform-none"
+                                                >
+                                                    {isPending ? (
+                                                        <span className="flex items-center">
+                                                            <svg
+                                                                className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                                                                xmlns="http://www.w3.org/2000/svg"
+                                                                fill="none"
+                                                                viewBox="0 0 24 24"
+                                                            >
+                                                                <circle
+                                                                    className="opacity-25"
+                                                                    cx="12"
+                                                                    cy="12"
+                                                                    r="10"
+                                                                    stroke="currentColor"
+                                                                    strokeWidth="4"
+                                                                ></circle>
+                                                                <path
+                                                                    className="opacity-75"
+                                                                    fill="currentColor"
+                                                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                                                ></path>
+                                                            </svg>
+                                                            Actualizando...
+                                                        </span>
+                                                    ) : (
+                                                        "Actualizar Venta"
+                                                    )}
+                                                </button>
+                                            </div>
                                         </form>
                                     </div>
                                 </div>
