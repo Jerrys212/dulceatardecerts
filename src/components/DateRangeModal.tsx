@@ -1,11 +1,10 @@
-import { DocumentArrowDownIcon } from "@heroicons/react/24/outline";
 import { FormEvent, useState } from "react";
 import { toast } from "react-toastify";
 
 interface DateRangeModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onGenerate: (format: "pdf" | "excel", dateRange: { startDate: string; endDate: string }) => void;
+    onGenerate: (dateRange: { startDate: string; endDate: string }) => void;
     title: string;
 }
 

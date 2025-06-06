@@ -1,5 +1,5 @@
 import api from "../lib";
-import { LoginFormData, userSchema } from "../types";
+import { ChangePasswordFormData, LoginFormData, userSchema } from "../types";
 import { isAxiosError } from "axios";
 
 export const login = async (formData: LoginFormData) => {
@@ -26,6 +26,19 @@ export const getUser = async () => {
         if (response.success) {
             return response.data;
         }
+    } catch (error) {
+        if (isAxiosError(error) && error.response) {
+            throw new Error(error.response.data.message);
+        }
+    }
+};
+
+export const changePassword = async ({ currentPassword, newPassword }: ChangePasswordFormData) => {
+    try {
+        const url = `/auth/change-password`;
+        const { data } = await api.post(url, { currentPassword, newPassword });
+
+        return data.message;
     } catch (error) {
         if (isAxiosError(error) && error.response) {
             throw new Error(error.response.data.message);

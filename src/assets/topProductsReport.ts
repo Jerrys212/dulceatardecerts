@@ -56,7 +56,7 @@ export const generateProductsPerformanceReportPDF = (salesData: ProductsPerforma
 
     // Calcular estadísticas adicionales
     const averageProductValue = data.summary.uniqueProductsSold > 0 ? data.summary.totalAmount / data.summary.uniqueProductsSold : 0;
-    const salesRate = data.summary.totalActiveProducts > 0 ? (data.summary.uniqueProductsSold / data.summary.totalActiveProducts) * 100 : 0;
+    // const salesRate = data.summary.totalActiveProducts > 0 ? (data.summary.uniqueProductsSold / data.summary.totalActiveProducts) * 100 : 0;
 
     // Preparar datos de productos top
     const topProductsTableData = data.topProducts.map((product, index) => [

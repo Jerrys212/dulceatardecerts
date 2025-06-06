@@ -12,9 +12,16 @@ export const userSchema = z.object({
     permissions: z.array(z.string()),
 });
 
+const changePasswordSchema = z.object({
+    currentPassword: z.string(),
+    newPassword: z.string(),
+    confirmPassword: z.string(),
+});
+
 export type User = z.infer<typeof userSchema>;
 
 export type LoginFormData = z.infer<typeof loginSchema>;
+export type ChangePasswordFormData = z.infer<typeof changePasswordSchema>;
 
 export const categorySchema = z.object({
     _id: z.string(),

@@ -86,7 +86,7 @@ const ReportCard = ({
 
                     {/* Botones de acción */}
                     <div className="border-t border-gray-100 pt-4">
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3">
                             <button
                                 onClick={handleDirectGenerate}
                                 disabled={isGenerating}
@@ -94,15 +94,6 @@ const ReportCard = ({
                             >
                                 <DocumentArrowDownIcon className="w-5 h-5 mr-2 group-hover/btn:scale-110 transition-transform duration-200" />
                                 <span className="font-medium">PDF</span>
-                            </button>
-                            {/* Puedes agregar más botones aquí para otros formatos */}
-                            <button
-                                onClick={handleDirectGenerate}
-                                disabled={isGenerating}
-                                className="flex items-center justify-center px-4 py-3 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 hover:scale-105 transition-all duration-200 group/btn disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                <DocumentArrowDownIcon className="w-5 h-5 mr-2 group-hover/btn:scale-110 transition-transform duration-200" />
-                                <span className="font-medium">Excel</span>
                             </button>
                         </div>
                     </div>

@@ -50,7 +50,7 @@ export const generateDateRangeSalesReportPDF = (salesData: DateRangeSalesData) =
 
     // Calcular estadísticas adicionales
     const totalProductsSold = data.topProducts.reduce((sum, product) => sum + product.count, 0);
-    const averageTicket = totalProductsSold > 0 ? data.totalAmount / totalProductsSold : 0;
+    // const averageTicket = totalProductsSold > 0 ? data.totalAmount / totalProductsSold : 0;
     const numberOfDays = Math.ceil((new Date(data.period.endDate).getTime() - new Date(data.period.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
     const averagePerDay = data.totalAmount / numberOfDays;
 

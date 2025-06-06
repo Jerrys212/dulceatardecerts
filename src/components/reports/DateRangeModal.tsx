@@ -52,13 +52,6 @@ export default function DateRangeModal({ isOpen, onClose, onGenerate, title }: D
         return new Date().toISOString().split("T")[0];
     };
 
-    // Función para obtener la fecha de hace 30 días
-    const getThirtyDaysAgoDate = () => {
-        const date = new Date();
-        date.setDate(date.getDate() - 30);
-        return date.toISOString().split("T")[0];
-    };
-
     // Función para obtener el primer día del mes actual
     const getFirstDayOfMonth = () => {
         const date = new Date();
