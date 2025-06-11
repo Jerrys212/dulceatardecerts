@@ -5,10 +5,12 @@ import { useForm } from "react-hook-form";
 import { XMarkIcon, ShoppingCartIcon, TrashIcon, TagIcon, ArrowLeftIcon, PlusIcon, PencilIcon } from "@heroicons/react/24/outline";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { CartItem, Category, Product, SaleFormData } from "../../types";
+import { CartItem, Category, Product, SaleFormData, Extra } from "../../types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getProducts } from "../../services/Products.Service";
+import { getExtras } from "../../services/Extras.Service";
 import { updateSale, getSaleById } from "../../services/Sale.Service";
+import { formatPrice } from "../../utils";
 import Spinner from "../Spinner";
 
 interface EditSaleModalProps {
@@ -34,8 +36,10 @@ export default function EditSaleModal({ categories }: EditSaleModalProps) {
     // Estados para el formulario de producto actual
     const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
     const [quantity, setQuantity] = useState(1);
-    const [extras, setExtras] = useState<string[]>([]);
-    const [currentExtra, setCurrentExtra] = useState("");
+    const [selectedExtras, setSelectedExtras] = useState<string[]>([]); // IDs de extras seleccionados
+
+    // Estados para mostrar/ocultar extras
+    const [showExtras, setShowExtras] = useState(false);
 
     // Query para obtener los datos de la venta
     const { data: saleData, isLoading: isLoadingSale } = useQuery({
@@ -50,6 +54,16 @@ export default function EditSaleModal({ categories }: EditSaleModalProps) {
         retry: false,
     });
 
+    // Query para obtener extras activos
+    const { data: extrasData } = useQuery({
+        queryKey: ["extras"],
+        queryFn: () => getExtras(),
+        retry: false,
+    });
+
+    // Filtrar solo extras activos
+    const activeExtras = extrasData?.filter((extra: Extra) => extra.isActive) || [];
+
     const {
         register,
         handleSubmit,
@@ -63,9 +77,6 @@ export default function EditSaleModal({ categories }: EditSaleModalProps) {
         },
     });
 
-    // Opciones de extras comunes
-    const commonExtras = ["Fresa", "Nutella", "Chocolate", "Crema", "Caramelo", "Plátano", "Durazno", "Manzana", "Canela", "Azúcar glass"];
-
     // Llenar el formulario cuando se cargan los datos de la venta
     useEffect(() => {
         if (saleData) {
@@ -77,7 +88,7 @@ export default function EditSaleModal({ categories }: EditSaleModalProps) {
                 name: item.name,
                 price: item.price,
                 quantity: item.quantity,
-                extras: item.extras,
+                extras: item.extras, // Ya son IDs de extras
                 subtotal: item.subtotal,
             }));
 
@@ -112,42 +123,49 @@ export default function EditSaleModal({ categories }: EditSaleModalProps) {
         if (product) {
             setCurrentProduct(product);
             setQuantity(1);
-            setExtras([]);
-            setCurrentExtra("");
+            setSelectedExtras([]);
+            setShowExtras(false); // Reset estado del accordion
         }
     };
 
-    // Agregar extra personalizado
-    const addCustomExtra = () => {
-        if (currentExtra.trim() && !extras.includes(currentExtra.trim())) {
-            setExtras((prev) => [...prev, currentExtra.trim()]);
-            setCurrentExtra("");
-        }
+    // Manejar selección de extras
+    const handleExtraSelect = (extraId: string) => {
+        setSelectedExtras((prev) => {
+            if (prev.includes(extraId)) {
+                return prev.filter((id) => id !== extraId);
+            } else {
+                return [...prev, extraId];
+            }
+        });
     };
 
-    // Agregar extra común
-    const addCommonExtra = (extra: string) => {
-        if (!extras.includes(extra)) {
-            setExtras((prev) => [...prev, extra]);
-        }
+    // Calcular precio de extras seleccionados
+    const getExtrasPrice = () => {
+        return selectedExtras.reduce((total, extraId) => {
+            const extra = activeExtras.find((e: Extra) => e._id === extraId);
+            return total + (extra?.price || 0);
+        }, 0);
     };
 
-    // Remover extra
-    const removeExtra = (extraToRemove: string) => {
-        setExtras((prev) => prev.filter((extra) => extra !== extraToRemove));
+    // Calcular subtotal del producto actual (incluyendo extras)
+    const getCurrentSubtotal = () => {
+        if (!currentProduct) return 0;
+        const basePrice = currentProduct.price * quantity;
+        const extrasPrice = getExtrasPrice() * quantity; // Multiplicar extras por cantidad
+        return basePrice + extrasPrice;
     };
 
     // Agregar producto al carrito
     const addToCart = () => {
         if (!currentProduct) return;
 
-        const subtotal = currentProduct.price * quantity;
+        const subtotal = getCurrentSubtotal();
         const newItem: CartItem = {
             product: currentProduct._id,
             name: currentProduct.name,
             price: currentProduct.price,
             quantity,
-            extras: extras,
+            extras: selectedExtras, // Array de IDs de extras
             subtotal,
         };
 
@@ -156,8 +174,8 @@ export default function EditSaleModal({ categories }: EditSaleModalProps) {
         // Resetear formulario de producto
         setCurrentProduct(null);
         setQuantity(1);
-        setExtras([]);
-        setCurrentExtra("");
+        setSelectedExtras([]);
+        setShowExtras(false); // Reset accordion
         setShowProductForm(false);
 
         toast.success("Producto agregado al carrito");
@@ -196,12 +214,14 @@ export default function EditSaleModal({ categories }: EditSaleModalProps) {
         return cartItems.reduce((total, item) => total + item.subtotal, 0);
     };
 
-    // Formatear precio
-    const formatPrice = (price: number) => {
-        return new Intl.NumberFormat("es-MX", {
-            style: "currency",
-            currency: "MXN",
-        }).format(price);
+    // Obtener extras de un item del carrito para mostrar
+    const getItemExtrasDisplay = (extraIds: string[]) => {
+        return extraIds
+            .map((id) => {
+                const extra = activeExtras.find((e: Extra) => e._id === id);
+                return extra ? `${extra.name} (+${formatPrice(extra.price)})` : "";
+            })
+            .filter(Boolean);
     };
 
     // Mutación para actualizar venta
@@ -244,8 +264,8 @@ export default function EditSaleModal({ categories }: EditSaleModalProps) {
         setSelectedSubCategory("");
         setAvailableProducts([]);
         setShowProductForm(false);
-        setExtras([]);
-        setCurrentExtra("");
+        setSelectedExtras([]);
+        setShowExtras(false);
         navigate(location.pathname, { replace: true });
     };
 
@@ -280,7 +300,7 @@ export default function EditSaleModal({ categories }: EditSaleModalProps) {
                         >
                             <DialogPanel className="w-full max-w-4xl transform overflow-hidden rounded-3xl bg-white text-left align-middle shadow-2xl transition-all">
                                 {/* Header del Modal */}
-                                <div className="relative bg-gradient-to-r  from-orange-600 to-red-600 px-8 py-6 text-white">
+                                <div className="relative bg-gradient-to-r from-orange-600 to-red-600 px-8 py-6 text-white">
                                     <div className="absolute top-4 right-4">
                                         <button
                                             onClick={handleClose}
@@ -419,87 +439,157 @@ export default function EditSaleModal({ categories }: EditSaleModalProps) {
                                                             </div>
                                                         </div>
 
-                                                        {/* Sección de Extras */}
+                                                        {/* Accordion de Extras */}
                                                         <div className="space-y-4">
-                                                            <label className="block text-sm font-medium text-gray-700">Extras (opcional)</label>
-
-                                                            {/* Extras comunes */}
-                                                            <div>
-                                                                <p className="text-xs text-gray-500 mb-2">Extras comunes:</p>
-                                                                <div className="flex flex-wrap gap-2">
-                                                                    {commonExtras.map((extra) => (
-                                                                        <button
-                                                                            key={extra}
-                                                                            type="button"
-                                                                            onClick={() => addCommonExtra(extra)}
-                                                                            disabled={extras.includes(extra)}
-                                                                            className={`px-3 py-1 text-xs rounded-full border transition-colors duration-200 ${
-                                                                                extras.includes(extra)
-                                                                                    ? "bg-orange-100 text-orange-700 border-orange-300 cursor-not-allowed"
-                                                                                    : "bg-white text-gray-700 border-gray-300 hover:bg-orange-50 hover:border-orange-300"
-                                                                            }`}
-                                                                        >
-                                                                            {extra}
-                                                                        </button>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-
-                                                            {/* Extra personalizado */}
-                                                            <div className="flex gap-2">
-                                                                <input
-                                                                    type="text"
-                                                                    value={currentExtra}
-                                                                    onChange={(e) => setCurrentExtra(e.target.value)}
-                                                                    placeholder="Agregar extra personalizado"
-                                                                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                                                                    onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addCustomExtra())}
-                                                                />
+                                                            <div className="border border-gray-200 rounded-xl overflow-hidden">
                                                                 <button
                                                                     type="button"
-                                                                    onClick={addCustomExtra}
-                                                                    className="px-3 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors duration-200"
+                                                                    onClick={() => setShowExtras(!showExtras)}
+                                                                    className="w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors duration-200 flex items-center justify-between"
                                                                 >
-                                                                    <PlusIcon className="w-4 h-4" />
-                                                                </button>
-                                                            </div>
-
-                                                            {/* Extras seleccionados */}
-                                                            {extras.length > 0 && (
-                                                                <div>
-                                                                    <p className="text-xs text-gray-500 mb-2">Extras seleccionados:</p>
-                                                                    <div className="flex flex-wrap gap-2">
-                                                                        {extras.map((extra, index) => (
-                                                                            <span
-                                                                                key={index}
-                                                                                className="inline-flex items-center px-3 py-1 text-xs bg-orange-100 text-orange-800 rounded-full"
-                                                                            >
-                                                                                {extra}
-                                                                                <button
-                                                                                    type="button"
-                                                                                    onClick={() => removeExtra(extra)}
-                                                                                    className="ml-2 text-orange-600 hover:text-orange-800"
-                                                                                >
-                                                                                    <XMarkIcon className="w-3 h-3" />
-                                                                                </button>
-                                                                            </span>
-                                                                        ))}
+                                                                    <div className="flex items-center space-x-3">
+                                                                        <PlusIcon
+                                                                            className={`w-5 h-5 text-gray-600 transition-transform duration-200 ${
+                                                                                showExtras ? "rotate-45" : ""
+                                                                            }`}
+                                                                        />
+                                                                        <span className="text-sm font-medium text-gray-700">
+                                                                            Agregar extras
+                                                                            {selectedExtras.length > 0 && (
+                                                                                <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">
+                                                                                    {selectedExtras.length} seleccionado
+                                                                                    {selectedExtras.length > 1 ? "s" : ""}
+                                                                                </span>
+                                                                            )}
+                                                                        </span>
                                                                     </div>
-                                                                </div>
-                                                            )}
+                                                                    {getExtrasPrice() > 0 && (
+                                                                        <span className="text-sm font-semibold text-orange-600">
+                                                                            +{formatPrice(getExtrasPrice() * quantity)}
+                                                                        </span>
+                                                                    )}
+                                                                </button>
+
+                                                                {showExtras && (
+                                                                    <div className="p-4 bg-white border-t border-gray-200">
+                                                                        {activeExtras.length > 0 ? (
+                                                                            <div className="space-y-4">
+                                                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                                                    {activeExtras.map((extra: Extra) => (
+                                                                                        <label
+                                                                                            key={extra._id}
+                                                                                            className={`flex items-center p-3 border rounded-lg cursor-pointer transition-all duration-200 ${
+                                                                                                selectedExtras.includes(extra._id)
+                                                                                                    ? "border-orange-500 bg-orange-50"
+                                                                                                    : "border-gray-200 hover:border-orange-300 hover:bg-orange-25"
+                                                                                            }`}
+                                                                                        >
+                                                                                            <input
+                                                                                                type="checkbox"
+                                                                                                checked={selectedExtras.includes(extra._id)}
+                                                                                                onChange={() => handleExtraSelect(extra._id)}
+                                                                                                className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
+                                                                                            />
+                                                                                            <div className="ml-3 flex-1">
+                                                                                                <div className="flex items-center justify-between">
+                                                                                                    <span className="text-sm font-medium text-gray-900">
+                                                                                                        {extra.name}
+                                                                                                    </span>
+                                                                                                    <span className="text-sm font-semibold text-orange-600">
+                                                                                                        +{formatPrice(extra.price)}
+                                                                                                    </span>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        </label>
+                                                                                    ))}
+                                                                                </div>
+
+                                                                                {/* Resumen de extras seleccionados */}
+                                                                                {selectedExtras.length > 0 && (
+                                                                                    <div className="bg-orange-50 rounded-lg p-3 mt-4">
+                                                                                        <p className="text-sm font-medium text-orange-900 mb-2">
+                                                                                            Resumen de extras:
+                                                                                        </p>
+                                                                                        <div className="space-y-1">
+                                                                                            {selectedExtras.map((extraId) => {
+                                                                                                const extra = activeExtras.find(
+                                                                                                    (e: Extra) => e._id === extraId
+                                                                                                );
+                                                                                                return extra ? (
+                                                                                                    <div
+                                                                                                        key={extraId}
+                                                                                                        className="flex justify-between text-sm"
+                                                                                                    >
+                                                                                                        <span className="text-orange-800">
+                                                                                                            {extra.name}
+                                                                                                        </span>
+                                                                                                        <span className="text-orange-900 font-medium">
+                                                                                                            +{formatPrice(extra.price)} × {quantity} ={" "}
+                                                                                                            {formatPrice(extra.price * quantity)}
+                                                                                                        </span>
+                                                                                                    </div>
+                                                                                                ) : null;
+                                                                                            })}
+                                                                                            <div className="border-t border-orange-200 pt-2 mt-2">
+                                                                                                <div className="flex justify-between text-sm font-semibold">
+                                                                                                    <span className="text-orange-900">
+                                                                                                        Total extras:
+                                                                                                    </span>
+                                                                                                    <span className="text-orange-900">
+                                                                                                        {formatPrice(getExtrasPrice() * quantity)}
+                                                                                                    </span>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        ) : (
+                                                                            <p className="text-gray-500 text-sm italic text-center py-4">
+                                                                                No hay extras disponibles
+                                                                            </p>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                         </div>
 
-                                                        <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                                                            <div>
-                                                                <span className="text-lg font-semibold text-gray-900">
-                                                                    Subtotal: {formatPrice(currentProduct.price * quantity)}
-                                                                </span>
+                                                        {/* Subtotal más visible */}
+                                                        <div className="bg-gradient-to-r from-orange-50 to-red-50 rounded-xl p-6 border-2 border-orange-200">
+                                                            <div className="space-y-3">
+                                                                {/* Desglose de precios */}
+                                                                <div className="flex justify-between items-center text-lg">
+                                                                    <span className="font-medium text-gray-700">Producto base:</span>
+                                                                    <span className="font-semibold text-gray-900">
+                                                                        {formatPrice(currentProduct.price)} × {quantity} ={" "}
+                                                                        {formatPrice(currentProduct.price * quantity)}
+                                                                    </span>
+                                                                </div>
+
+                                                                {getExtrasPrice() > 0 && (
+                                                                    <div className="flex justify-between items-center text-lg">
+                                                                        <span className="font-medium text-orange-700">Extras:</span>
+                                                                        <span className="font-semibold text-orange-900">
+                                                                            +{formatPrice(getExtrasPrice() * quantity)}
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+
+                                                                <div className="border-t-2 border-orange-300 pt-3">
+                                                                    <div className="flex justify-between items-center">
+                                                                        <span className="text-2xl font-bold text-gray-900">SUBTOTAL:</span>
+                                                                        <span className="text-3xl font-bold text-orange-600">
+                                                                            {formatPrice(getCurrentSubtotal())}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
                                                             </div>
+
                                                             <button
                                                                 onClick={addToCart}
-                                                                className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors duration-200"
+                                                                className="w-full mt-4 py-4 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-xl hover:from-orange-700 hover:to-red-700 transition-all duration-200 font-bold text-lg shadow-lg hover:shadow-xl transform hover:scale-105"
                                                             >
-                                                                Agregar al Carrito
+                                                                🛒 Agregar al Carrito
                                                             </button>
                                                         </div>
                                                     </div>
@@ -539,9 +629,16 @@ export default function EditSaleModal({ categories }: EditSaleModalProps) {
                                                                         {item.quantity}x {formatPrice(item.price)}
                                                                     </p>
                                                                     {item.extras && item.extras.length > 0 && (
-                                                                        <p className="text-xs text-orange-600">Extras: {item.extras.join(", ")}</p>
+                                                                        <div className="text-xs text-orange-600 mt-1">
+                                                                            <p className="font-medium">Extras:</p>
+                                                                            {getItemExtrasDisplay(item.extras).map((extraDisplay, idx) => (
+                                                                                <p key={idx} className="ml-2">
+                                                                                    • {extraDisplay}
+                                                                                </p>
+                                                                            ))}
+                                                                        </div>
                                                                     )}
-                                                                    <p className="text-sm font-semibold text-orange-600">
+                                                                    <p className="text-sm font-semibold text-orange-600 mt-1">
                                                                         {formatPrice(item.subtotal)}
                                                                     </p>
                                                                 </div>
@@ -555,10 +652,12 @@ export default function EditSaleModal({ categories }: EditSaleModalProps) {
                                                         </div>
                                                     ))}
 
-                                                    <div className="border-t pt-3">
+                                                    <div className="border-t pt-4 bg-gradient-to-r from-orange-50 to-red-50 rounded-lg p-4 -mx-1">
                                                         <div className="flex justify-between items-center">
-                                                            <span className="font-semibold">Total:</span>
-                                                            <span className="text-xl font-bold text-orange-600">{formatPrice(getCartTotal())}</span>
+                                                            <span className="text-xl font-bold text-gray-900">TOTAL:</span>
+                                                            <span className="text-3xl font-bold text-orange-600 bg-white px-4 py-2 rounded-lg shadow-lg">
+                                                                {formatPrice(getCartTotal())}
+                                                            </span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -591,7 +690,7 @@ export default function EditSaleModal({ categories }: EditSaleModalProps) {
                                                 <button
                                                     type="submit"
                                                     disabled={cartItems.length === 0 || isPending}
-                                                    className="px-6 py-3 bg-gradient-to-r  from-orange-600 to-red-600 text-white rounded-xl hover:from-orange-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-all duration-200 transform hover:scale-105 disabled:transform-none"
+                                                    className="px-6 py-3 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-xl hover:from-orange-700 hover:to-red-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-all duration-200 transform hover:scale-105 disabled:transform-none"
                                                 >
                                                     {isPending ? (
                                                         <span className="flex items-center">

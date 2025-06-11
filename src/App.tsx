@@ -8,9 +8,10 @@ import Sales from "./views/admin/Sales";
 import { SocketProvider } from "./context/useSocket";
 import Reports from "./views/admin/Reports";
 import UserProfile from "./views/admin/Profile";
+import Extras from "./views/admin/Extras";
 
 function App() {
-    const token = sessionStorage.getItem("AUTH_TOKEN");
+    const token = localStorage.getItem("AUTH_TOKEN");
 
     return (
         <BrowserRouter>
@@ -24,6 +25,7 @@ function App() {
                         <Route path="/profile" index element={<UserProfile />} />
                         <Route path="/categories" index element={<Categories />} />
                         <Route path="/products" index element={<Products />} />
+                        <Route path="/extras" index element={<Extras />} />
                         <Route path="/sales" index element={<Sales />} />
                         <Route path="/reports" index element={<Reports />} />
                     </Route>

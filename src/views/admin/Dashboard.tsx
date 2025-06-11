@@ -34,6 +34,15 @@ const Dashboard = () => {
             textColor: "text-white",
         },
         {
+            name: "extras",
+            path: "/extras",
+            icon: <ShoppingBagIcon className="w-10 h-10" />,
+            label: "Extras",
+            description: "Explora y administra tu inventario de extras",
+            bgColor: "bg-gradient-to-br from-orange-400 to-red-500",
+            textColor: "text-white",
+        },
+        {
             name: "sales",
             path: "/sales",
             icon: <CurrencyDollarIcon className="w-10 h-10" />,

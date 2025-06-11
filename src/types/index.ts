@@ -57,11 +57,25 @@ export type ProductFormData = Omit<Product, "_id" | "isActive" | "createdAt" | "
     category: string;
 };
 
+export const extraSchema = z.object({
+    _id: z.string(),
+    name: z.string(),
+    price: z.number(),
+    isActive: z.boolean(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+});
+
+export const extrasSchema = z.array(extraSchema);
+
+export type Extra = z.infer<typeof extraSchema>;
+export type ExtraFormData = Pick<Extra, "name" | "price">;
+
 // Schema para un item de la venta - CORREGIDO
 const SaleItemSchema = z.object({
     product: productSchema,
     name: z.string(),
-    extras: z.array(z.string()),
+    extras: z.array(extraSchema.pick({ _id: true, name: true, price: true })),
     price: z.number(),
     quantity: z.number(),
     subtotal: z.number(),

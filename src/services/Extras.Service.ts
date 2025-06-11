@@ -1,16 +1,16 @@
 import { isAxiosError } from "axios";
 import api from "../lib";
-import { Product, ProductFormData, productSchema, productsSchema } from "../types";
+import { Extra, ExtraFormData, extraSchema, extrasSchema } from "../types";
 
-type ProductAPI = {
-    formData: ProductFormData;
-    productId: Product["_id"];
+type ExtraAPI = {
+    formData: ExtraFormData;
+    extraId: Extra["_id"];
 };
 
-export const getProducts = async () => {
+export const getExtras = async () => {
     try {
-        const { data } = await api.get("/products");
-        const response = productsSchema.safeParse(data.data);
+        const { data } = await api.get("/extras");
+        const response = extrasSchema.safeParse(data.data);
 
         if (response.success) {
             return response.data;
@@ -22,10 +22,10 @@ export const getProducts = async () => {
     }
 };
 
-export const getProductById = async ({ productId }: Pick<ProductAPI, "productId">) => {
+export const getExtraById = async ({ extraId }: Pick<ExtraAPI, "extraId">) => {
     try {
-        const { data } = await api.get(`/products/${productId}`);
-        const response = productSchema.safeParse(data.data);
+        const { data } = await api.get(`/extras/${extraId}`);
+        const response = extraSchema.safeParse(data.data);
 
         if (response.success) {
             return response.data;
@@ -37,9 +37,9 @@ export const getProductById = async ({ productId }: Pick<ProductAPI, "productId"
     }
 };
 
-export const createProduct = async ({ formData }: Pick<ProductAPI, "formData">) => {
+export const createExtra = async ({ formData }: Pick<ExtraAPI, "formData">) => {
     try {
-        const { data } = await api.post(`/products`, formData);
+        const { data } = await api.post(`/extras`, formData);
 
         return data.message;
     } catch (error) {
@@ -49,9 +49,9 @@ export const createProduct = async ({ formData }: Pick<ProductAPI, "formData">) 
     }
 };
 
-export const updateProduct = async ({ productId, formData }: Pick<ProductAPI, "productId" | "formData">) => {
+export const updateExtra = async ({ extraId, formData }: Pick<ExtraAPI, "extraId" | "formData">) => {
     try {
-        const { data } = await api.put(`/products/${productId}`, formData);
+        const { data } = await api.put(`/extras/${extraId}`, formData);
 
         return data.message;
     } catch (error) {
@@ -61,9 +61,9 @@ export const updateProduct = async ({ productId, formData }: Pick<ProductAPI, "p
     }
 };
 
-export const deleteProduct = async ({ productId }: Pick<ProductAPI, "productId">) => {
+export const deleteExtra = async ({ extraId }: Pick<ExtraAPI, "extraId">) => {
     try {
-        const { data } = await api.delete(`/product/${productId}`);
+        const { data } = await api.delete(`/extras/${extraId}`);
 
         return data.message;
     } catch (error) {

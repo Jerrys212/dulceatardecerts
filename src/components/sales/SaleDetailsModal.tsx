@@ -1,7 +1,7 @@
 import { Fragment } from "react";
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from "@headlessui/react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { XMarkIcon, ShoppingCartIcon, CheckCircleIcon, XCircleIcon, ClockIcon, ListBulletIcon } from "@heroicons/react/24/outline";
+import { XMarkIcon, ShoppingCartIcon, CheckCircleIcon, XCircleIcon, ClockIcon, ListBulletIcon, CubeIcon } from "@heroicons/react/24/outline";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import Spinner from "../Spinner";
@@ -59,6 +59,11 @@ export default function SaleDetailModal() {
         }
     };
 
+    const getExtrasPrice = (item: any) => {
+        if (!item.extras || item.extras.length === 0) return 0;
+        return item.extras.reduce((total: number, extra: any) => total + extra.price * item.quantity, 0);
+    };
+
     if (sale)
         return (
             <Transition appear show={!!saleId} as={Fragment}>
@@ -107,7 +112,7 @@ export default function SaleDetailModal() {
                                                     <DialogTitle as="h3" className="text-2xl font-bold">
                                                         ORDEN #{sale.customer}
                                                     </DialogTitle>
-                                                    <p className="mt-1 text-orange-100">Vendedor: {sale.seller.username}</p>
+                                                    <p className="mt-1 text-blue-100">Vendedor: {sale.seller.username}</p>
                                                 </div>
                                             </div>
 
@@ -130,84 +135,110 @@ export default function SaleDetailModal() {
                                         <div className="mb-4">
                                             <div className="flex items-center justify-between mb-3">
                                                 <h4 className="text-xl font-bold text-gray-900 flex items-center">
-                                                    <ListBulletIcon className="h-5 w-5 mr-2 text-orange-600" />
+                                                    <ListBulletIcon className="h-5 w-5 mr-2 text-blue-600" />
                                                     PRODUCTOS A PREPARAR ({sale.items.length})
                                                 </h4>
                                                 <div className="text-right">
-                                                    <div className="text-xl font-bold text-purple-600">{formatPrice(sale.total)}</div>
-                                                    <div className="text-xs text-gray-500">Total orden</div>
+                                                    <div className="text-2xl font-bold text-purple-600 bg-purple-50 px-4 py-2 rounded-lg border-2 border-purple-200">
+                                                        {formatPrice(sale.total)}
+                                                    </div>
+                                                    <div className="text-xs text-gray-500 mt-1">Total orden</div>
                                                 </div>
                                             </div>
 
-                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                                                 {sale.items.map((item, index) => (
-                                                    <div key={index} className="bg-white border-2 border-purple-200 rounded-lg p-4 shadow-md">
-                                                        <div className="flex items-start justify-between mb-3">
-                                                            <div className="flex-1">
-                                                                {/* Categoría PRIMERO y más destacada */}
-                                                                <div className="bg-purple-100 text-purple-800 px-3 py-2 rounded-lg mb-2">
-                                                                    <div className="font-black text-lg uppercase">{item.product.category.name}</div>
-                                                                    {item.product.subCategory && (
-                                                                        <div className="text-sm font-medium">• {item.product.subCategory}</div>
-                                                                    )}
-                                                                </div>
-
-                                                                {/* Nombre del producto (sabor/tipo) */}
-                                                                <div className="flex items-center space-x-2 mb-2">
-                                                                    <div className="bg-orange-100 text-orange-600 rounded-full w-6 h-6 flex items-center justify-center font-bold text-sm">
-                                                                        {index + 1}
-                                                                    </div>
-                                                                    <h6 className="font-bold text-lg text-gray-900">{item.name}</h6>
-                                                                    {!item.product.isActive && (
-                                                                        <div className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-medium">
-                                                                            INACTIVO
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-
-                                                                {/* Cantidad destacada pero más compacta */}
-                                                                <div className="bg-blue-50 border border-blue-200 rounded p-2 mb-2 text-center">
-                                                                    <div className="text-xl font-black text-blue-600">CANTIDAD: {item.quantity}</div>
-                                                                </div>
-
-                                                                {/* Descripción compacta */}
-                                                                {item.product.description && (
-                                                                    <div className="bg-gray-50 rounded p-2 mb-2">
-                                                                        <div className="font-medium text-gray-700 text-xs uppercase">
-                                                                            Descripción:
-                                                                        </div>
-                                                                        <p className="text-gray-800 text-sm">{item.product.description}</p>
-                                                                    </div>
+                                                    <div key={index} className="bg-white border-2 border-blue-200 rounded-xl p-5 shadow-lg">
+                                                        <div className="mb-4">
+                                                            {/* Categoría PRIMERO y más destacada */}
+                                                            <div className="bg-blue-100 text-blue-800 px-4 py-3 rounded-xl mb-3">
+                                                                <div className="font-black text-xl uppercase">{item.product.category.name}</div>
+                                                                {item.product.subCategory && (
+                                                                    <div className="text-sm font-medium">• {item.product.subCategory}</div>
                                                                 )}
+                                                            </div>
 
-                                                                {/* EXTRAS - Compactos pero visibles */}
-                                                                {item.extras && item.extras.length > 0 && (
-                                                                    <div className="bg-yellow-50 border border-yellow-300 rounded p-2">
-                                                                        <div className="font-bold text-yellow-800 text-sm uppercase mb-1">
-                                                                            ⚠️ Especificaciones:
-                                                                        </div>
-                                                                        <div className="space-y-1">
-                                                                            {item.extras.map((extra, extraIndex) => (
-                                                                                <div
-                                                                                    key={extraIndex}
-                                                                                    className="bg-yellow-200 text-yellow-900 px-2 py-1 rounded text-sm font-medium"
-                                                                                >
-                                                                                    • {extra}
-                                                                                </div>
-                                                                            ))}
-                                                                        </div>
+                                                            {/* Nombre del producto (sabor/tipo) */}
+                                                            <div className="flex items-center space-x-3 mb-3">
+                                                                <div className="bg-orange-100 text-orange-600 rounded-full w-8 h-8 flex items-center justify-center font-bold">
+                                                                    {index + 1}
+                                                                </div>
+                                                                <h6 className="font-bold text-xl text-gray-900">{item.name}</h6>
+                                                                {!item.product.isActive && (
+                                                                    <div className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs font-bold">
+                                                                        INACTIVO
                                                                     </div>
                                                                 )}
                                                             </div>
 
-                                                            {/* Precio compacto */}
-                                                            <div className="text-right ml-3">
-                                                                <div className="bg-green-50 border border-green-200 rounded p-2 text-center min-w-[80px]">
-                                                                    <div className="text-xs text-gray-600">Unit.</div>
-                                                                    <div className="text-sm font-bold text-green-600">{formatPrice(item.price)}</div>
-                                                                    <div className="text-xs text-gray-600 mt-1">Total</div>
-                                                                    <div className="text-lg font-bold text-green-600">
-                                                                        {formatPrice(item.subtotal)}
+                                                            {/* Cantidad destacada */}
+                                                            <div className="bg-green-50 border-2 border-green-200 rounded-xl p-3 mb-3 text-center">
+                                                                <div className="text-2xl font-black text-green-600">CANTIDAD: {item.quantity}</div>
+                                                            </div>
+
+                                                            {/* Descripción compacta */}
+                                                            {item.product.description && (
+                                                                <div className="bg-gray-50 rounded-lg p-3 mb-3">
+                                                                    <div className="font-bold text-gray-700 text-xs uppercase mb-1">Descripción:</div>
+                                                                    <p className="text-gray-800 text-sm">{item.product.description}</p>
+                                                                </div>
+                                                            )}
+
+                                                            {/* EXTRAS - Información resumida */}
+                                                            {item.extras && item.extras.length > 0 && (
+                                                                <div className="bg-purple-50 border-2 border-purple-300 rounded-xl p-4 mb-3">
+                                                                    <div className="flex items-center justify-between mb-3">
+                                                                        <div className="flex items-center space-x-2">
+                                                                            <CubeIcon className="h-5 w-5 text-purple-600" />
+                                                                            <div className="font-bold text-purple-800 text-sm uppercase">
+                                                                                Extras Agregados:
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-bold">
+                                                                            +{formatPrice(getExtrasPrice(item))} TOTAL
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex flex-wrap gap-2">
+                                                                        {item.extras.map((extra: any, extraIndex: number) => (
+                                                                            <div
+                                                                                key={extraIndex}
+                                                                                className="bg-white border border-purple-200 rounded-lg px-3 py-2 flex items-center space-x-2"
+                                                                            >
+                                                                                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                                                                                <span className="font-medium text-purple-900 text-sm">
+                                                                                    {extra.name}
+                                                                                </span>
+                                                                                <span className="text-purple-600 text-xs font-medium">
+                                                                                    +{formatPrice(extra.price)}
+                                                                                </span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Resumen de precios al final */}
+                                                            <div className="bg-gray-100 border border-gray-300 rounded-xl p-4 text-center">
+                                                                <div className="flex justify-between items-center text-sm text-gray-600 mb-2">
+                                                                    <span>Precio unitario:</span>
+                                                                    <span className="font-semibold">{formatPrice(item.price)}</span>
+                                                                </div>
+                                                                <div className="flex justify-between items-center text-sm text-gray-600 mb-2">
+                                                                    <span>Cantidad:</span>
+                                                                    <span className="font-semibold">× {item.quantity}</span>
+                                                                </div>
+                                                                {getExtrasPrice(item) > 0 && (
+                                                                    <div className="flex justify-between items-center text-sm text-purple-600 mb-2">
+                                                                        <span>Extras:</span>
+                                                                        <span className="font-semibold">+{formatPrice(getExtrasPrice(item))}</span>
+                                                                    </div>
+                                                                )}
+                                                                <div className="border-t border-gray-300 pt-2">
+                                                                    <div className="flex justify-between items-center">
+                                                                        <span className="text-lg font-bold text-gray-900">SUBTOTAL:</span>
+                                                                        <span className="text-xl font-black text-green-600">
+                                                                            {formatPrice(item.subtotal)}
+                                                                        </span>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -218,29 +249,29 @@ export default function SaleDetailModal() {
                                         </div>
 
                                         {/* Información adicional (minimizada) */}
-                                        <div className="border-t border-gray-200 pt-3">
+                                        <div className="border-t border-gray-200 pt-4">
                                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                                                <div className="bg-blue-50 rounded-lg p-2">
-                                                    <div className="font-medium text-blue-900 text-xs">Fecha creación</div>
-                                                    <div className="text-blue-700 text-xs">{formatDate(sale.createdAt)}</div>
+                                                <div className="bg-blue-50 rounded-lg p-3">
+                                                    <div className="font-medium text-blue-900 text-xs uppercase">Fecha creación</div>
+                                                    <div className="text-blue-700 text-sm font-medium">{formatDate(sale.createdAt)}</div>
                                                 </div>
 
-                                                <div className="bg-amber-50 rounded-lg p-2">
-                                                    <div className="font-medium text-amber-900 text-xs">Última actualización</div>
-                                                    <div className="text-amber-700 text-xs">{formatDate(sale.updatedAt)}</div>
+                                                <div className="bg-amber-50 rounded-lg p-3">
+                                                    <div className="font-medium text-amber-900 text-xs uppercase">Última actualización</div>
+                                                    <div className="text-amber-700 text-sm font-medium">{formatDate(sale.updatedAt)}</div>
                                                 </div>
 
                                                 {sale.statusUpdatedBy && (
-                                                    <div className="bg-indigo-50 rounded-lg p-2">
-                                                        <div className="font-medium text-indigo-900 text-xs">Estado por</div>
-                                                        <div className="text-indigo-700 text-xs">{sale.statusUpdatedBy.username}</div>
+                                                    <div className="bg-indigo-50 rounded-lg p-3">
+                                                        <div className="font-medium text-indigo-900 text-xs uppercase">Estado por</div>
+                                                        <div className="text-indigo-700 text-sm font-medium">{sale.statusUpdatedBy.username}</div>
                                                     </div>
                                                 )}
 
                                                 {sale.statusUpdatedAt && (
-                                                    <div className="bg-teal-50 rounded-lg p-2">
-                                                        <div className="font-medium text-teal-900 text-xs">Estado actualizado</div>
-                                                        <div className="text-teal-700 text-xs">{formatDate(sale.statusUpdatedAt)}</div>
+                                                    <div className="bg-teal-50 rounded-lg p-3">
+                                                        <div className="font-medium text-teal-900 text-xs uppercase">Estado actualizado</div>
+                                                        <div className="text-teal-700 text-sm font-medium">{formatDate(sale.statusUpdatedAt)}</div>
                                                     </div>
                                                 )}
                                             </div>

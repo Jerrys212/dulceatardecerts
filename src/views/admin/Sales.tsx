@@ -176,7 +176,7 @@ const SalesPage = () => {
                             <h3 className="text-xl font-medium text-gray-900 mb-2">No hay ventas registradas</h3>
                             <p className="text-gray-500 mb-6">Comienza registrando tu primera venta para comenzar a vender</p>
                             <button
-                                onClick={() => {}}
+                                onClick={() => navigate(location.pathname + `?addSale`)}
                                 className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-green-600 hover:bg-green-700"
                             >
                                 <PlusIcon className="w-5 h-5 mr-2" />

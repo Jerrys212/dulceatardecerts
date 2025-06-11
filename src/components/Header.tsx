@@ -12,7 +12,7 @@ const Header = () => {
     };
 
     const logout = () => {
-        sessionStorage.clear();
+        localStorage.clear();
         navigate("/");
     };
 
@@ -36,6 +36,13 @@ const Header = () => {
             path: "/products",
             icon: <ShoppingBagIcon className="w-6 h-6" />,
             label: "Productos",
+            description: "Catálogo completo",
+        },
+        {
+            name: "extras",
+            path: "/extras",
+            icon: <ShoppingBagIcon className="w-6 h-6" />,
+            label: "Extras",
             description: "Catálogo completo",
         },
         {
